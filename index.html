@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luno Advanced Dashboard</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header__brand">
+        <span class="app-header__title">Luno Dashboard</span>
+        <div>
+          <span class="app-header__by">by</span>
+          <span class="app-header__credit">WalterDrinkWater</span>
+        </div>
+      </div>
+      <div class="app-header__actions">
+        <button
+          class="btn btn-ghost btn-icon"
+          title="Share Dashboard"
+          onclick="Dashboard.shareDashboard()"
+        >
+          <span class="icon">ios_share</span>
+        </button>
+        <button
+          class="btn btn-ghost btn-icon"
+          title="Refresh"
+          onclick="Dashboard.refresh()"
+        >
+          <span class="icon">refresh</span>
+        </button>
+        <button class="btn btn-secondary" onclick="Dashboard.openDrawer()">
+          <span class="icon icon--sm">settings</span> Settings
+        </button>
+        <button
+          class="btn btn-ghost btn-icon"
+          title="About"
+          onclick="Router.go('#/about')"
+        >
+          <span class="icon">help</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== SETUP PAGE ===== -->
+    <section id="page-setup" class="page hidden">
+      <div class="setup-container">
+        <div class="setup-card">
+          <h2 class="setup-card__title">
+            <span class="icon icon--lg">vpn_key</span> API Configuration
+          </h2>
+          <p class="setup-card__subtitle">
+            Connect your Luno account to view your portfolio.
+          </p>
+
+          <div class="disclaimer disclaimer--warning">
+            <span class="disclaimer__icon icon">warning</span>
+            Your API key is stored <strong>only in this browser</strong> and is
+            never sent to any third-party server. Use
+            <strong>Read-only</strong> permissions to keep your funds safe.
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">API Key ID</label>
+            <input
+              type="text"
+              class="form-input"
+              id="setup-key-id"
+              placeholder="e.g. cnz2yjswbv3jd"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">API Key Secret</label>
+            <div class="input-with-toggle">
+              <input
+                type="password"
+                class="form-input"
+                id="setup-key-secret"
+                placeholder="Your API key secret"
+                autocomplete="off"
+              />
+              <button
+                class="input-toggle-btn"
+                id="secret-toggle"
+                onclick="Setup.toggleSecret()"
+              >
+                <span class="icon" id="secret-toggle-icon">visibility_off</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-secondary" onclick="Setup.testConnection()">
+              <span class="icon icon--sm">search</span> Test Connection
+            </button>
+            <button class="btn btn-primary" onclick="Setup.saveAndEnter()">
+              <span class="icon icon--sm">save</span> Save &amp; Enter
+            </button>
+          </div>
+
+          <div class="form-status" id="setup-status"></div>
+
+          <hr class="form-divider" />
+
+          <div class="referral-section">
+            <h4>
+              <span class="icon icon--sm">link</span> Referral Code
+              <span
+                style="
+                  font-weight: 400;
+                  font-size: 0.75rem;
+                  color: var(--color-text-muted);
+                "
+                >(Optional)</span
+              >
+            </h4>
+            <p class="referral-section__desc">
+              Enter your Luno referral code to share with friends.
+            </p>
+            <div class="form-group">
+              <input
+                type="text"
+                class="form-input"
+                id="setup-referral"
+                placeholder="e.g. FRIEND2024"
+                oninput="Setup.updateReferral()"
+              />
+            </div>
+
+            <div id="referral-preview" class="hidden">
+              <p class="referral-section__desc">Share this link:</p>
+              <div class="share-preview">
+                <span class="form-input" id="referral-link"></span>
+                <button
+                  class="btn btn-secondary"
+                  id="copy-referral-btn"
+                  onclick="Setup.copyReferralLink()"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="setup-link" style="margin-top: 20px">
+          Don't have an API key?
+          <a href="#/tutorial">View Tutorial</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== TUTORIAL PAGE ===== -->
+    <section id="page-tutorial" class="page hidden">
+      <div class="tutorial-container">
+        <a class="tutorial-back" onclick="Tutorial.goBack()"
+          ><span class="icon icon--sm">arrow_back</span> Back to Setup</a
+        >
+
+        <div class="tutorial-header">
+          <h1>
+            <span class="icon icon--lg">menu_book</span> How to Create a Luno
+            API Key
+          </h1>
+          <p>
+            7 steps to create a secure, read-only API key for this dashboard.
+          </p>
+        </div>
+
+        <div id="tutorial-steps"></div>
+
+        <div class="step-card" style="margin-top: 28px; padding: 24px 28px">
+          <div
+            class="step-card__number"
+            style="
+              background: var(--color-surface-container-high);
+              color: var(--color-on-surface-variant);
+              font-size: 0.875rem;
+            "
+          >
+            <span class="icon">info</span>
+          </div>
+          <div class="step-card__body">
+            <div class="step-card__title">Permission Reference</div>
+            <table class="perm-table">
+              <thead>
+                <tr>
+                  <th>Access Type</th>
+                  <th>Risk</th>
+                  <th>What it Allows</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Read-only</strong></td>
+                  <td class="risk-low">
+                    <span class="icon icon--sm icon--filled">check_circle</span>
+                    Low
+                  </td>
+                  <td style="color: var(--color-on-surface-variant)">
+                    View balances, transactions, orders, and receive addresses
+                    only.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Trading</strong></td>
+                  <td class="risk-high">
+                    <span class="icon icon--sm">warning</span> Very High
+                  </td>
+                  <td style="color: var(--color-on-surface-variant)">
+                    Can trade, send crypto, and withdraw funds. Only grant to
+                    fully trusted applications.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Custom</strong></td>
+                  <td class="risk-custom">
+                    <span class="icon icon--sm">rule</span> Depends
+                  </td>
+                  <td style="color: var(--color-on-surface-variant)">
+                    Choose specific permissions manually. This dashboard
+                    requires: View balance + View transactions + View orders.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="disclaimer" style="margin-top: 20px">
+          <span class="disclaimer__icon icon">shield</span>
+          <strong>Security Note:</strong> Your API key is stored only in your
+          browser's localStorage. It is never transmitted to any server other
+          than Luno's official API (api.luno.com). Always use the minimum
+          required permissions. Never share your API Key Secret with anyone.
+          This tool is open source &mdash; feel free to review the code before
+          use.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DASHBOARD PAGE ===== -->
+    <section id="page-dashboard" class="page hidden">
+      <div class="dashboard-summary">
+        <div class="summary-card">
+          <div class="summary-card__label">
+            <span class="icon icon--sm">account_balance_wallet</span> Total
+            Value
+          </div>
+          <div class="summary-card__value" id="card-value">---</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card__label">
+            <span class="icon icon--sm">trending_up</span> Total Invested
+          </div>
+          <div class="summary-card__value" id="card-invested">---</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card__label">
+            <span class="icon icon--sm">show_chart</span> Total P&amp;L
+          </div>
+          <div class="summary-card__value" id="card-pnl">---</div>
+          <div class="summary-card__sub" id="card-pnl-sub"></div>
+        </div>
+      </div>
+
+      <!-- <div
+        style="
+          font-size: 0.8125rem;
+          color: var(--color-on-surface-variant);
+          margin-bottom: 16px;
+        "
+        id="card-meta"
+      ></div> -->
+
+      <div id="chart-section">
+        <div class="dashboard-grid">
+          <div class="chart-panel">
+            <div class="chart-panel__title">
+              <span class="icon icon--sm">bar_chart</span> P&amp;L by Asset
+            </div>
+            <div style="height: 260px"><canvas id="chart-pnl"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-panel__title">
+              <span class="icon icon--sm">compare_arrows</span> Invested vs
+              Current Value
+            </div>
+            <div style="height: 260px">
+              <canvas id="chart-invested-value"></canvas>
+            </div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-panel__title">
+              <span class="icon icon--sm">pie_chart</span> Asset Allocation
+            </div>
+            <div style="height: 260px">
+              <canvas id="chart-allocation"></canvas>
+            </div>
+          </div>
+          <div class="chart-panel chart-panel--span-3">
+            <div class="chart-panel__title">
+              <span class="icon icon--sm">emoji_events</span> Return % by Asset
+            </div>
+            <div style="height: 220px"><canvas id="chart-return"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel" style="margin-top: 20px">
+        <div class="chart-panel__title">
+          <span class="icon icon--sm">table_rows</span> Asset Details
+        </div>
+        <div class="asset-table-wrap">
+          <table class="asset-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Balance</th>
+                <th>Avg Cost</th>
+                <th>Price</th>
+                <th>Value</th>
+                <th>Invested</th>
+                <th>P&amp;L</th>
+                <th>P&amp;L%</th>
+              </tr>
+            </thead>
+            <tbody id="asset-table-body">
+              <tr>
+                <td
+                  colspan="8"
+                  style="
+                    text-align: center;
+                    padding: 24px;
+                    color: var(--color-on-surface-variant);
+                  "
+                >
+                  <div
+                    class="loading-spinner"
+                    style="margin: 0 auto 12px"
+                  ></div>
+                  Loading data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SETTINGS DRAWER ===== -->
+    <div
+      id="settings-drawer"
+      class="drawer-overlay"
+      onclick="Dashboard.closeDrawer()"
+    >
+      <div class="drawer-panel" onclick="event.stopPropagation()">
+        <div class="drawer-header">
+          Dashboard Settings
+          <button class="drawer-close" onclick="Dashboard.closeDrawer()">
+            <span class="icon">close</span>
+          </button>
+        </div>
+        <div class="drawer-body">
+          <div class="drawer-section">
+            <label class="drawer-section__label">Assets</label>
+            <div id="drawer-asset-list" class="drawer-asset-list"></div>
+            <p class="drawer-section__desc">Toggle individual assets on/off.</p>
+          </div>
+
+          <div class="drawer-section">
+            <label class="drawer-section__label">Currency</label>
+            <select class="drawer-select" disabled>
+              <option>MYR</option>
+            </select>
+            <p class="drawer-section__desc">More currencies coming soon.</p>
+          </div>
+
+          <hr class="drawer-divider" />
+
+          <div class="drawer-section">
+            <label class="drawer-section__label">API Key</label>
+            <button
+              class="btn btn-secondary"
+              onclick="Dashboard.resetApiKey()"
+              style="width: 100%; justify-content: center"
+            >
+              <span class="icon icon--sm">vpn_key_off</span> Reset API Key
+            </button>
+            <p class="drawer-section__desc">
+              Return to setup to reconfigure your API key.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SHARE OVERLAY ===== -->
+    <div
+      id="share-overlay"
+      class="share-overlay share-overlay--hidden"
+      onclick="Dashboard.closeShare()"
+    >
+      <div class="share-overlay__content" onclick="event.stopPropagation()">
+        <div class="share-overlay__header">
+          <span class="icon icon--md">camera_alt</span> Share Portfolio
+        </div>
+        <div id="share-template-grid" class="share-template-grid"></div>
+        <div id="share-theme-picker" class="share-theme-picker"></div>
+        <div class="share-preview-wrap">
+          <img
+            id="share-preview-img"
+            alt="Preview"
+            style="
+              width: 100%;
+              min-height: 200px;
+              border-radius: var(--radius);
+              border: 1px solid #1a1d23;
+              background: var(--color-surface-container-low);
+            "
+          />
+        </div>
+        <div id="share-status" class="share-status"></div>
+        <div class="share-overlay__actions" style="margin-top: 14px">
+          <button class="btn btn-primary" onclick="Dashboard.shareTemplate()">
+            <span class="icon">ios_share</span> Share
+          </button>
+          <button class="btn btn-secondary" onclick="Dashboard.downloadShare()">
+            <span class="icon icon--sm">download</span> Download
+          </button>
+          <button class="btn btn-ghost" onclick="Dashboard.closeShare()">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ABOUT PAGE ===== -->
+    <section id="page-about" class="page hidden">
+      <div class="about-container">
+        <div class="about-card">
+          <div id="about-content" class="about-content">Loading...</div>
+        </div>
+      </div>
+    </section>
+
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/setup.js"></script>
+    <script src="js/tutorial.js"></script>
+    <script src="js/about.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+      (function renderTutorial() {
+        var container = document.getElementById("tutorial-steps");
+        if (!container || !Tutorial || !Tutorial.steps) return;
+        container.innerHTML = Tutorial.steps
+          .map(function (s, i) {
+            var cls = "step-card";
+            if (s.highlight) cls += " step-card--highlight";
+            var imgHtml = s.image
+              ? '<img class="step-card__image" src="' +
+                s.image +
+                '" alt="Step ' +
+                (i + 1) +
+                '" loading="lazy" />'
+              : "";
+
+            var warningHtml = "";
+            if (s.warning) {
+              warningHtml =
+                '<div class="warning-box"><strong><span class="icon icon--sm">warning</span> Important</strong>' +
+                s.warning +
+                "</div>";
+            }
+
+            var permHtml = "";
+            if (s.permissions) {
+              permHtml =
+                '<ul class="permission-list">' +
+                s.permissions
+                  .map(function (p) {
+                    return (
+                      '<li><span class="icon icon--sm">check_small</span> ' +
+                      p.label +
+                      " (code: " +
+                      p.code +
+                      ")</li>"
+                    );
+                  })
+                  .join("") +
+                "</ul>";
+            }
+
+            return (
+              '<div class="' +
+              cls +
+              '">' +
+              '<div class="step-card__number">' +
+              (i + 1) +
+              "</div>" +
+              '<div class="step-card__body">' +
+              '<div class="step-card__title">' +
+              s.title +
+              "</div>" +
+              '<div class="step-card__desc">' +
+              s.desc +
+              "</div>" +
+              permHtml +
+              warningHtml +
+              imgHtml +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+      })();
+    </script>
+  </body>
+</html>
