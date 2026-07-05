@@ -47,6 +47,7 @@ const Calculator = {
         totalValue += value;
         assets.push({
           asset,
+          displayAsset: CONFIG.ASSET_DISPLAY_NAMES[asset] || asset,
           balance: bal.balance,
           accountId: bal.account_id,
           name: bal.name || '',
@@ -76,6 +77,7 @@ const Calculator = {
       if (!currentPrice || currentPrice <= 0) {
         assets.push({
           asset,
+          displayAsset: CONFIG.ASSET_DISPLAY_NAMES[asset] || asset,
           balance: bal.balance,
           accountId: bal.account_id,
           name: bal.name || '',
@@ -128,6 +130,7 @@ const Calculator = {
 
       assets.push({
         asset,
+        displayAsset: CONFIG.ASSET_DISPLAY_NAMES[asset] || asset,
         balance: bal.balance,
         reserved: bal.reserved,
         accountId: bal.account_id,

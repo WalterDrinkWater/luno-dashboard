@@ -827,6 +827,32 @@ body.body--drawer-open .app-header__actions {
   to { transform: rotate(360deg); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-surface-container) 25%,
+    var(--color-surface-container-high) 37%,
+    var(--color-surface-container) 63%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  color: transparent !important;
+  pointer-events: none;
+  user-select: none;
+}
+
+.skeleton--overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+}
+
 .empty-state {
   text-align: center;
   padding: 40px 20px;

@@ -3,6 +3,7 @@ const Dashboard = {
   _charts: {},
   _lastFiltered: [],
   _resizeTimer: null,
+  _loading: false,
 
   async init() {
     await this.loadData();
@@ -10,6 +11,7 @@ const Dashboard = {
   },
 
   async loadData() {
+    this._setLoadingState(true);
     try {
       const [balanceData, tickersData] = await Promise.all([
         API.fetchBalance(),
@@ -37,8 +39,75 @@ const Dashboard = {
       }
 
       this._data = Calculator.calculate(balanceData, tickersData, tradesByPair);
+      this._setLoadingState(false);
       this.render();
-    } catch (err) {}
+    } catch (err) {
+      this._setLoadingState(false);
+    }
+  },
+
+  _setLoadingState(loading) {
+    this._loading = loading;
+
+    var shareBtn = document.getElementById("btn-share");
+    var refreshBtn = document.getElementById("btn-refresh");
+    if (shareBtn) shareBtn.disabled = loading;
+    if (refreshBtn) refreshBtn.disabled = loading;
+
+    var cards = document.querySelectorAll(".summary-card");
+    cards.forEach(function (card) {
+      if (loading) {
+        card.style.position = "relative";
+        Array.from(card.children).forEach(function (child) {
+          child.style.visibility = "hidden";
+        });
+        var sk = document.createElement("div");
+        sk.className = "skeleton skeleton--overlay";
+        card.appendChild(sk);
+      } else {
+        card.style.position = "";
+        Array.from(card.children).forEach(function (child) {
+          child.style.visibility = "";
+        });
+        card.querySelectorAll(".skeleton--overlay").forEach(function (sk) {
+          sk.remove();
+        });
+      }
+    });
+
+    var panels = document.querySelectorAll("#chart-section .chart-panel");
+    panels.forEach(function (panel) {
+      if (loading) {
+        panel.style.position = "relative";
+        Array.from(panel.children).forEach(function (child) {
+          child.style.visibility = "hidden";
+        });
+        var sk = document.createElement("div");
+        sk.className = "skeleton skeleton--overlay";
+        panel.appendChild(sk);
+      } else {
+        panel.style.position = "";
+        Array.from(panel.children).forEach(function (child) {
+          child.style.visibility = "";
+        });
+        panel.querySelectorAll(".skeleton--overlay").forEach(function (sk) {
+          sk.remove();
+        });
+      }
+    });
+
+    var thead = document.querySelector(".asset-table thead");
+    if (thead) thead.style.visibility = loading ? "hidden" : "";
+
+    var tbody = document.getElementById("asset-table-body");
+    if (tbody && loading) {
+      var rows = "";
+      for (var i = 0; i < 6; i++) {
+        rows +=
+          '<tr><td colspan="8"><div class="skeleton" style="height:20px;margin:8px 0;"></div></td></tr>';
+      }
+      tbody.innerHTML = rows;
+    }
   },
 
   render() {
@@ -116,7 +185,7 @@ const Dashboard = {
     this._charts.pnl = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: sorted.map((a) => a.asset),
+        labels: sorted.map((a) => a.displayAsset),
         datasets: [
           {
             label: "P&L",
@@ -171,7 +240,7 @@ const Dashboard = {
     this._charts.investedValue = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: sorted.map((a) => a.asset),
+        labels: sorted.map((a) => a.displayAsset),
         datasets: [
           {
             label: "Invested",
@@ -243,7 +312,7 @@ const Dashboard = {
     this._charts.allocation = new Chart(ctx, {
       type: "doughnut",
       data: {
-        labels: sorted.map((a) => a.asset),
+        labels: sorted.map((a) => a.displayAsset),
         datasets: [
           {
             data: sorted.map((a) => a.currentValue),
@@ -288,7 +357,7 @@ const Dashboard = {
     this._charts.returnRank = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: sorted.map((a) => a.asset),
+        labels: sorted.map((a) => a.displayAsset),
         datasets: [
           {
             label: "Return %",
@@ -356,7 +425,7 @@ const Dashboard = {
           return (
             "<tr>" +
             "<td><strong>" +
-            a.asset +
+            a.displayAsset +
             '</strong><span class="asset-badge">' +
             (a.name || "") +
             "</span></td>" +
@@ -371,7 +440,7 @@ const Dashboard = {
         return (
           "<tr>" +
           "<td><strong>" +
-          a.asset +
+          a.displayAsset +
           '</strong><span class="asset-badge">' +
           (a.name || "") +
           "</span></td>" +
@@ -472,12 +541,14 @@ const Dashboard = {
       icon: "account_balance_wallet",
     },
     { id: "assets", label: "Top Assets", icon: "currency_bitcoin" },
+    { id: "portion", label: "Assets Portion", icon: "donut_large" },
   ],
   _selectedTemplate: "summary",
   _selectedTheme: "void",
   _templateCanvas: null,
 
   async shareDashboard() {
+    if (this._loading) return;
     this._showShareOverlay();
   },
 
@@ -578,6 +649,7 @@ const Dashboard = {
     try {
       if (tmplId === "summary") this._drawTplSummary(ctx, w, h, data, theme);
       else if (tmplId === "assets") this._drawTplAssets(ctx, w, h, data, theme);
+      else if (tmplId === "portion") this._drawTplPortion(ctx, w, h, data, theme);
     } catch (e) {
       console.error("Template render error:", e);
     }
@@ -730,7 +802,7 @@ const Dashboard = {
       ctx.font = '600 16px "Manrope"';
       ctx.fillStyle = theme.text;
       ctx.textAlign = "left";
-      ctx.fillText(a.asset, colX[0], y);
+      ctx.fillText(a.displayAsset, colX[0], y);
 
       ctx.font = '500 14px "JetBrains Mono"';
       ctx.fillStyle = theme.text;
@@ -777,6 +849,67 @@ const Dashboard = {
         }),
       w / 2,
       startY + 50 + assets.length * rowH + 30,
+    );
+  },
+
+  _drawTplPortion(ctx, w, h, data, theme) {
+    const assets = (data.assets || [])
+      .filter((a) => !a.isFiat && !a.noPrice)
+      .sort((a, b) => b.currentValue - a.currentValue)
+      .slice(0, 8);
+    if (assets.length === 0) return;
+    const totalValue = assets.reduce((s, a) => s + a.currentValue, 0);
+    const fiat = data.summary.defaultFiat;
+    const startY = 120, rowH = 54;
+    const barX = 180, barW = 600, barH = 24, barRadius = 6;
+    const pctX = 1060;
+
+    ctx.font = '600 18px "Manrope"';
+    ctx.fillStyle = theme.muted;
+    ctx.textAlign = "left";
+    ctx.fillText("Asset Allocation", 48, startY);
+
+    assets.forEach((a, i) => {
+      const y = startY + 26 + i * rowH;
+      const barY = y - barH / 2 + 4;
+      const pct = totalValue > 0 ? (a.currentValue / totalValue) * 100 : 0;
+      const fillW = Math.max((pct / 100) * barW, 4);
+
+      ctx.font = '600 15px "Manrope"';
+      ctx.fillStyle = theme.text;
+      ctx.textAlign = "left";
+      ctx.fillText(a.displayAsset, 60, y);
+
+      ctx.fillStyle = theme.surface;
+      this._drawRoundedRect(ctx, barX, barY, barW, barH, barRadius);
+      ctx.fill();
+
+      if (fillW > 0) {
+        ctx.fillStyle = theme.accent;
+        this._drawRoundedRect(ctx, barX, barY, fillW, barH, barRadius);
+        ctx.fill();
+      }
+
+      ctx.font = '600 14px "JetBrains Mono"';
+      ctx.fillStyle = theme.text;
+      ctx.textAlign = "right";
+      ctx.fillText(pct.toFixed(1) + "%", pctX, y);
+    });
+
+    const footerY = startY + 26 + assets.length * rowH + 30;
+    ctx.font = '500 13px "Inter"';
+    ctx.fillStyle = theme.muted;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "Total Value: " +
+        fiat +
+        " " +
+        Number(data.summary.totalValue).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      w / 2,
+      footerY,
     );
   },
 
@@ -855,6 +988,7 @@ const Dashboard = {
   },
 
   refresh() {
+    if (this._loading) return;
     this.loadData();
   },
 
@@ -894,7 +1028,7 @@ const Dashboard = {
         return (
           '<div class="drawer-asset-row">' +
           '<span class="drawer-asset-row__left">' +
-          a.asset +
+          a.displayAsset +
           '<span class="drawer-asset-row__badge">' +
           (a.name || "") +
           "</span>" +

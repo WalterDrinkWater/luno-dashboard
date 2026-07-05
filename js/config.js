@@ -9,6 +9,10 @@ const CONFIG = {
     REFERRAL_CODE: "luno_referral_code",
   },
 
+  ASSET_DISPLAY_NAMES: {
+    "XBT": "BTC",
+  },
+
   FIAT_CURRENCIES: [
     "MYR",
     "ZAR",
