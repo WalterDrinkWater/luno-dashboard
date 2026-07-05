@@ -38,7 +38,25 @@ const Dashboard = {
         }
       }
 
-      this._data = Calculator.calculate(balanceData, tickersData, tradesByPair);
+      const transactionsByAccount = {};
+      for (const bal of balanceData.balance || []) {
+        if (!Calculator._isFiat(bal.asset) && bal.account_id) {
+          try {
+            transactionsByAccount[bal.account_id] = await API.fetchTransactions(
+              bal.account_id,
+            );
+          } catch {
+            transactionsByAccount[bal.account_id] = { transactions: [] };
+          }
+        }
+      }
+
+      this._data = Calculator.calculate(
+        balanceData,
+        tickersData,
+        tradesByPair,
+        transactionsByAccount,
+      );
       this._setLoadingState(false);
       this.render();
     } catch (err) {
@@ -118,7 +136,11 @@ const Dashboard = {
       if (!(a.asset in visMap)) visMap[a.asset] = true;
     });
     Storage.saveBulkAssetVisibility(visMap);
-    const filtered = nonFiat.filter((a) => visMap[a.asset] !== false);
+    const filtered = nonFiat
+      .filter((a) => visMap[a.asset] !== false)
+      .filter((a) => a.volumeTraded > 0)
+      .filter((a) => parseFloat(a.currentValue).toFixed(2) > 0);
+
     this._renderSummary(filtered);
     this._renderCharts(filtered);
     this._renderTable(filtered);
@@ -127,6 +149,7 @@ const Dashboard = {
 
   _renderSummary(filtered) {
     const s = this._data.summary;
+    console.log("Summary:", s);
     const fiat = s.defaultFiat;
 
     document.getElementById("card-value").textContent = this._fmtFiat(
@@ -188,10 +211,21 @@ const Dashboard = {
         labels: sorted.map((a) => a.displayAsset),
         datasets: [
           {
-            label: "P&L",
-            data: sorted.map((a) => a.pnl),
+            label: "Realized P&L",
+            data: sorted.map((a) => a.realizedPnl || 0),
             backgroundColor: sorted.map((a) =>
-              a.pnl >= 0 ? cc.profit : cc.loss,
+              (a.realizedPnl || 0) >= 0 ? cc.realizedProfit : cc.realizedLoss,
+            ),
+            borderRadius: 4,
+            borderSkipped: false,
+          },
+          {
+            label: "Unrealized P&L",
+            data: sorted.map((a) => a.unrealizedPnl || 0),
+            backgroundColor: sorted.map((a) =>
+              (a.unrealizedPnl || 0) >= 0
+                ? cc.unrealizedProfit
+                : cc.unrealizedLoss,
             ),
             borderRadius: 4,
             borderSkipped: false,
@@ -203,13 +237,29 @@ const Dashboard = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: true,
+            position: "top",
+            labels: {
+              color: cc.text,
+              font: { family: "Inter", size: 11 },
+              padding: 12,
+              usePointStyle: true,
+            },
+          },
           tooltip: {
             callbacks: {
               label: (ctx) => {
                 const v = ctx.parsed.x;
                 const sign = v >= 0 ? "+" : "";
-                return "P&L: " + sign + v.toFixed(2);
+                return ctx.dataset.label + ": " + sign + v.toFixed(2);
+              },
+              afterBody: (items) => {
+                const idx = items[0].dataIndex;
+                const a = sorted[idx];
+                const totalPnl = (a.realizedPnl || 0) + (a.unrealizedPnl || 0);
+                const sign = totalPnl >= 0 ? "+" : "";
+                return "Trading P&L: " + sign + totalPnl.toFixed(2);
               },
             },
           },
@@ -649,7 +699,8 @@ const Dashboard = {
     try {
       if (tmplId === "summary") this._drawTplSummary(ctx, w, h, data, theme);
       else if (tmplId === "assets") this._drawTplAssets(ctx, w, h, data, theme);
-      else if (tmplId === "portion") this._drawTplPortion(ctx, w, h, data, theme);
+      else if (tmplId === "portion")
+        this._drawTplPortion(ctx, w, h, data, theme);
     } catch (e) {
       console.error("Template render error:", e);
     }
@@ -860,8 +911,12 @@ const Dashboard = {
     if (assets.length === 0) return;
     const totalValue = assets.reduce((s, a) => s + a.currentValue, 0);
     const fiat = data.summary.defaultFiat;
-    const startY = 120, rowH = 54;
-    const barX = 180, barW = 600, barH = 24, barRadius = 6;
+    const startY = 120,
+      rowH = 54;
+    const barX = 180,
+      barW = 600,
+      barH = 24,
+      barRadius = 6;
     const pctX = 1060;
 
     ctx.font = '600 18px "Manrope"';
@@ -933,18 +988,24 @@ const Dashboard = {
     try {
       const dataUrl = canvas.toDataURL("image/png");
       const blob = this._dataURLToBlob(dataUrl);
-      const file = new File([blob], "luno-dashboard.png", { type: "image/png" });
+      const file = new File([blob], "luno-dashboard.png", {
+        type: "image/png",
+      });
       const isMobile = window.innerWidth < 768 || "ontouchstart" in window;
 
       if (isMobile) {
-        navigator.share({ title: "Luno Dashboard", files: [file] })
+        navigator
+          .share({ title: "Luno Dashboard", files: [file] })
           .then(() => this._setShareStatus("Sent to share sheet"))
-          .catch(() => this._setShareStatus("Share cancelled — click Download to save"));
+          .catch(() =>
+            this._setShareStatus("Share cancelled — click Download to save"),
+          );
       } else {
-        navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob })
-        ])
-          .then(() => this._setShareStatus("Image copied to clipboard — paste to share"))
+        navigator.clipboard
+          .write([new ClipboardItem({ "image/png": blob })])
+          .then(() =>
+            this._setShareStatus("Image copied to clipboard — paste to share"),
+          )
           .catch(() => {
             this._setShareStatus("Copy failed — click Download to save");
             this.downloadShare();
