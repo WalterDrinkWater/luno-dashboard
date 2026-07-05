@@ -45,4 +45,10 @@ const API = {
 
     return allTrades;
   },
+
+  async fetchTransactions(accountId) {
+    return this._get(
+      `/api/1/accounts/${accountId}/transactions?min_row=1&max_row=1000`
+    );
+  },
 };

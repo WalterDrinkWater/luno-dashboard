@@ -19,6 +19,7 @@
       </div>
       <div class="app-header__actions">
         <button
+          id="btn-share"
           class="btn btn-ghost btn-icon"
           title="Share Dashboard"
           onclick="Dashboard.shareDashboard()"
@@ -26,6 +27,7 @@
           <span class="icon">ios_share</span>
         </button>
         <button
+          id="btn-refresh"
           class="btn btn-ghost btn-icon"
           title="Refresh"
           onclick="Dashboard.refresh()"
@@ -282,7 +284,7 @@
         <div class="dashboard-grid">
           <div class="chart-panel">
             <div class="chart-panel__title">
-              <span class="icon icon--sm">bar_chart</span> P&amp;L by Asset
+              <span class="icon icon--sm">bar_chart</span> P&amp;L Breakdown
             </div>
             <div style="height: 260px"><canvas id="chart-pnl"></canvas></div>
           </div>
