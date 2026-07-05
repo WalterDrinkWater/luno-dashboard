@@ -2,7 +2,7 @@ const CONFIG = {
   API_BASE_URL:
     window.location.hostname === "localhost"
       ? ""
-      : "https://luno-dashboard-proxy.qingshui9362.workers.dev/ms-my/",
+      : "https://luno-dashboard-proxy.qingshui9362.workers.dev/ms-my",
 
   STORAGE_KEYS: {
     API_KEY: "luno_api_key",
